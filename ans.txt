@@ -1,0 +1,108 @@
+Problem (unicode1): Understanding Unicode (1 point)
+
+(a) What Unicode character does chr(0) return?
+Ans: 
+>>> chr(0)
+'\x00'
+>>> ord('\x00')
+0
+NULL character
+
+(b) How does this character's string representation (__repr__()) differ from its printed representation?
+Ans:
+>>> chr(0)
+'\x00'
+>>> print(chr(0))
+
+>>> 
+
+(c) What happens when this character occurs in text? It may be helpful to play around with the following in your Python interpreter and see if it matches your expectations:
+>>> chr(0)
+>>> print(chr(0))
+>>> "this is a test" + chr(0) + "string"
+>>> print("this is a test" + chr(0) + "string")
+Ans:
+>>> chr(0)
+'\x00'
+>>> print(chr(0))
+
+>>> "this is a test" + chr(0) + "string"
+'this is a test\x00string'
+>>> print("this is a test" + chr(0) + "string")
+this is a teststring
+>>>
+
+----
+
+Problem (unicode2): Unicode Encodings (3 points)
+
+(a) What are some reasons to prefer training our tokenizer on UTF-8 encoded bytes, rather than UTF-16 or UTF-32? It may be helpful to compare the output of these encodings for various input strings.
+Ans:
+>>> test_string = "hello! こんにちは!"
+>>> utf8_encoded = test_string.encode("utf-8")
+>>> utf16_encoded = test_string.encode("utf-16")
+>>> utf32_encoded = test_string.encode("utf-32")
+>>> print(len(test_string))
+13
+>>> print(len(utf8_encoded))
+23
+>>> print(len(utf16_encoded))
+28
+>>> print(len(utf32_encoded))
+56
+>>>
+
+less memory usage, ASCII -> 1, 2, 4 bytes in utf-8, utf-16, utf-32.
+
+(b) Consider the following (incorrect) function, which is intended to decode a UTF-8 byte string into a Unicode string. Why is this function incorrect? Provide an example of an input byte string that yields incorrect results.
+
+def decode_utf8_bytes_to_str_wrong(bytestring: bytes):
+    return "".join([bytes([b]).decode("utf-8") for b in bytestring])
+>>> decode_utf8_bytes_to_str_wrong("hello".encode("utf-8"))
+'hello'
+Ans:
+>>> "🙂".encode("utf-8")
+b'\xf0\x9f\x99\x82'
+>>> decode_utf8_bytes_to_str_wrong("🙂".encode("utf-8"))
+UnicodeDecodeError: 'utf-8' codec can't decode byte 0xf0 in position 0: unexpected end of data
+
+utf-8 characters may consist of multiple bytes. can't decode each one individually. 
+
+(c) Give a two byte sequence that does not decode to any Unicode character(s).
+Ans:
+>>> b'\x01\x9f'.decode('utf-8')
+UnicodeDecodeError: 'utf-8' codec can't decode byte 0x9f in position 1: invalid start byte
+
+---
+
+Problem (train_bpe_tinystories): BPE Training on TinyStories (2 points)
+
+(a) Train a byte-level BPE tokenizer on the TinyStories dataset, using a maximum vocabulary size of 10,000. Make sure to add the TinyStories <|endoftext|> special token to the vocabulary. Serialize the resulting vocabulary and merges to disk for further inspection. How many hours and memory did training take? What is the longest token in the vocabulary? Does it make sense?
+
+Resource requirements: ≤30 minutes (no GPUs), ≤ 30GB RAM
+
+Hint: You should be able to get under 2 minutes for BPE training using multiprocessing during
+pretokenization and the following two facts:
+    (a) The <|endoftext|> token delimits documents in the data files.
+    (b) The <|endoftext|> token is handled as a special case before the BPE merges are applied.
+Ans:
+vocab size: 10000
+merges size: 9743
+total training time: 171.9467 seconds (2.8658 mins)
+longest token 7160: b' accomplishment'
+longest token length: 15
+
+(b) Profile your code. What part of the tokenizer training process takes the most time?
+Ans:
+         456055153 function calls (456054770 primitive calls) in 171.982 seconds
+
+   Ordered by: cumulative time
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.006    0.006  171.982  171.982 /Users/janpuli/Desktop/Foo/Repos/cs336/cs336-a1/cs336_basics/train_bpe.py:254(main)
+        1    1.327    1.327  171.941  171.941 /Users/janpuli/Desktop/Foo/Repos/cs336/cs336-a1/cs336_basics/train_bpe.py:199(train_bpe)
+     9743   49.837    0.005   59.593    0.006 /Users/janpuli/Desktop/Foo/Repos/cs336/cs336-a1/cs336_basics/train_bpe.py:170(perform_merge_step)
+     9801   28.792    0.003   56.398    0.006 {built-in method builtins.max}
+        1    0.000    0.000   54.566   54.566 /Users/janpuli/Desktop/Foo/Repos/cs336/cs336-a1/cs336_basics/train_bpe.py:135(run_pretokenization)
+
+--

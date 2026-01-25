@@ -253,12 +253,12 @@ def save_to_disk(
 
 def main():
     # test_file = "./data/TinyStoriesV2-GPT4-valid.txt"
-    test_file = "./data/TinyStoriesV2-GPT4-train.txt"
+    test_file = "./data/owt_train.txt"
 
     start_time = time.time()
     vocab, merges = train_bpe(
         input_path=test_file,
-        vocab_size=10000,
+        vocab_size=32000,
         special_tokens=["<|endoftext|>"]
     )
     end_time = time.time()
@@ -275,7 +275,7 @@ def main():
     print(f"longest token {longest_token_id}: {longest_token_bytes}")
     print(f"longest token length: {len(longest_token_bytes)}")
 
-    save_to_disk(vocab, merges, "vocab_ts.json", "merges_ts.txt")
+    save_to_disk(vocab, merges, "vocab_owt.json", "merges_owt.txt")
     
 
 if __name__ == "__main__":

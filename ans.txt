@@ -32,7 +32,7 @@ Ans:
 this is a teststring
 >>>
 
-----
+---
 
 Problem (unicode2): Unicode Encodings (3 points)
 
@@ -105,4 +105,24 @@ Ans:
      9801   28.792    0.003   56.398    0.006 {built-in method builtins.max}
         1    0.000    0.000   54.566   54.566 /Users/janpuli/Desktop/Foo/Repos/cs336/cs336-a1/cs336_basics/train_bpe.py:135(run_pretokenization)
 
---
+---
+
+Problem (tokenizer_experiments): Experiments with tokenizers (4 points)
+ -- no enough memory -- requires ~100GB RAM for owt :/
+
+(a) Sample 10 documents from TinyStories and OpenWebText. Using your previously-trained TinyStories and OpenWebText tokenizers (10K and 32K vocabulary size, respectively), encode these sampled documents into integer IDs. What is each tokenizer's compression ratio (bytes/token)?
+Ans:
+
+(b) What happens if you tokenize your OpenWebText sample with the TinyStories tokenizer? Compare the compression ratio and/or qualitatively describe what happens.
+Ans:
+
+(c) Estimate the throughput of your tokenizer (e.g., in bytes/second). How long would it take to tokenize the Pile dataset (825GB of text)?
+Ans:
+
+(d) Using your TinyStories and OpenWebText tokenizers, encode the respective training and development datasets into a sequence of integer token IDs. We'll use this later to train our language model. We recommend serializing the token IDs as a NumPy array of datatype uint16. Why is uint16 an appropriate choice?
+Ans:
+
+---
+
+
+

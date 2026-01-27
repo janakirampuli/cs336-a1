@@ -147,8 +147,22 @@ def run_multihead_self_attention(
         Float[Tensor, " ... sequence_length d_out"]: Tensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
-    raise NotImplementedError
+    attention_layer = CausalSelfAttention(
+        d_model=d_model,
+        num_heads=num_heads,
+        device=in_features.device,
+        dtype=in_features.dtype,
+        use_rope=False,
+        causal=True
+    )
 
+    W_qkv = torch.concat([q_proj_weight, k_proj_weight, v_proj_weight], dim=0)
+    state_dict = OrderedDict([
+        ("W_qkv.W", W_qkv),
+        ("W_o.W", o_proj_weight)
+    ])
+    attention_layer.load_state_dict(state_dict)
+    return attention_layer(in_features)
 
 def run_multihead_self_attention_with_rope(
     d_model: int,
@@ -187,8 +201,25 @@ def run_multihead_self_attention_with_rope(
         Float[Tensor, " ... sequence_length d_out"]: Tensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
-    raise NotImplementedError
+    attention_layer = CausalSelfAttention(
+        d_model=d_model,
+        num_heads=num_heads,
+        device=in_features.device,
+        dtype=in_features.dtype,
+        theta=theta,
+        use_rope=True,
+        causal=True
+    )
+    
 
+    W_qkv = torch.concat([q_proj_weight, k_proj_weight, v_proj_weight], dim=0)
+    state_dict = OrderedDict([
+        ("W_qkv.W", W_qkv),
+        ("W_o.W", o_proj_weight)
+    ])
+    attention_layer.load_state_dict(state_dict)
+
+    return attention_layer(in_features, token_positions)
 
 def run_rope(
     d_k: int,
@@ -209,7 +240,7 @@ def run_rope(
     Returns:
         Float[Tensor, " ... sequence_length d_k"]: Tensor with RoPEd input.
     """
-    rope = RotaryPositionalEmbedding(theta=theta, d_k=d_k, max_seq_length=max_seq_len, device=token_positions.device)
+    rope = RotaryPositionalEmbedding(theta=theta, d_k=d_k, max_seq_length=max_seq_len)
     return rope(in_query_or_key, token_positions)
 
 

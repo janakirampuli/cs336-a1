@@ -10,8 +10,7 @@ class RotaryPositionalEmbedding(nn.Module):
             self,
             theta: float,
             d_k: int,
-            max_seq_length: int,
-            device: Optional[torch.device]
+            max_seq_length: int
     ):
         super().__init__()
         self.theta = theta

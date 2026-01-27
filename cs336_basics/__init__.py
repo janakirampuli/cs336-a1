@@ -9,6 +9,8 @@ from .embedding import Embedding
 from .rmsnorm import RMSNorm
 from .swiglu import SwiGLU
 from .rope import RotaryPositionalEmbedding
+from .softmax import softmax
+from .scaled_dot_product_attention import scaled_dot_product_attention
 
 __all__ = [
     "Linear",
@@ -17,5 +19,7 @@ __all__ = [
     "Embedding",
     "RMSNorm",
     "SwiGLU",
-    "RotaryPositionalEmbedding"
+    "RotaryPositionalEmbedding",
+    "softmax",
+    "scaled_dot_product_attention"
 ]

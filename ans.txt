@@ -108,7 +108,7 @@ Ans:
 ---
 
 Problem (tokenizer_experiments): Experiments with tokenizers (4 points)
- -- no enough memory -- requires ~100GB RAM for owt :/
+ -- not enough memory -- requires ~100GB RAM for owt :/
 
 (a) Sample 10 documents from TinyStories and OpenWebText. Using your previously-trained TinyStories and OpenWebText tokenizers (10K and 32K vocabulary size, respectively), encode these sampled documents into integer IDs. What is each tokenizer's compression ratio (bytes/token)?
 Ans:
@@ -124,5 +124,69 @@ Ans:
 
 ---
 
+Problem (transformer_accounting): Transformer LM resource accounting (5 points)
+
+(a) Consider GPT-2 XL, which has the following configuration:
+vocab_size : 50,257
+context_length : 1,024
+num_layers : 48
+d_model : 1,600
+num_heads : 25
+d_ff : 6,400
+Suppose we constructed our model using this configuration. How many trainable parameters would our model have? Assuming each parameter is represented using single-precision floating point, how much memory is required to just load this model?Deliverable: A one-to-two sentence response.
+Ans:
+params:
+transformer_block -> 2*d + 4*d*d + 3*d*d_ff
+pos_embeddings -> c*d
+token_embeddings -> v*d
+total_params = n*(2*d + 4*d*d + 3*d*d_ff) + d + d*v + c*d ~ 2B
+memory(fp32) ~ 8GB
+
+(b) Identify the matrix multiplies required to complete a forward pass of our GPT-2 XL-shaped model. How many FLOPs do these matrix multiplies require in total? Assume that our input sequence has context_length tokens.Deliverable: A list of matrix multiplies (with descriptions), and the total number of FLOPs required.
+Ans:
+
+qkv projection -> (c * d) * (d * 3d) -> 6*c*d*d
+
+attention score(q*k) -> (c * d_q) * (d_q * c) (per_head) -> 2*h*c*d/h*c = 2*c*c*d
+
+softmax(attn)*v -> (c * c) * (c * d_v) (per_head) -> 2*h*c*c*d/h = 2*c*c*d
+
+attn_output -> (c * d) * (d * d) -> 2*c*d*d
+
+swiglu1 -> (c * d) * (d * d_ff) -> 2*c*d*d_ff
+
+swiglu1 -> (c * d_ff) * (d_ff * d) -> 2*c*d_ff*d
+
+total ~ (6*c*d*d + 4*c*c*d + 2*c*d*d + 4*c*d*d_ff) * n
+
+total ~ 3.34 * 10^12 FLOPS
+
+3.34 TRILLION FLOPS per forwars pass
+
+
+(c) Based on your analysis above, which parts of the model require the most FLOPs?
+Ans:
+MLP(from swiglu)
+quite interesting that it's not from attention and it's from MLP
+sparsity, MOE's for MLP xx 
+
+(d) Repeat your analysis with GPT-2 small (12 layers, 768 d_model, 12 heads), GPT-2 medium (24 layers, 1024 d_model, 16 heads), and GPT-2 large (36 layers, 1280 d_model, 20 heads). As the model size increases, which parts of the Transformer LM take up proportionally more or less of the total FLOPs?
+Deliverable: For each model, provide a breakdown of model components and its associated FLOPs (as a proportion of the total FLOPs required for a forward pass). In addition, provide a one-to-two sentence description of how varying the model size changes the proportional FLOPs of each component.
+Ans:
+MLP takes up growing proportion of total FLOPS (~60%)
+MLP ~ O(c * d * d) and attention scores ~ O(c * c * d)
+
+(e) Take GPT-2 XL and increase the context length to 16,384. How does the total FLOPs for one forward pass change? How do the relative contribution of FLOPs of the model components change?
+Ans:
+
+total ~ (6*c*d*d + 4*c*c*d + 2*c*d*d + 4*c*d*d_ff) * n
+
+total ~ 1.31 * 10^14 FLOPS
+~ 39 x more FLOPS
+
+so, at short contexts -> MLP-dominated FLOPS
+at long contexts -> attention-dominated FLOPS
+
+---
 
 

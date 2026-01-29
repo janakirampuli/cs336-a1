@@ -12,6 +12,9 @@ from .rope import RotaryPositionalEmbedding
 from .softmax import softmax
 from .scaled_dot_product_attention import scaled_dot_product_attention
 from .multihead_self_attention import CausalSelfAttention
+from .transformer_block import TransformerBlock
+from .transformer_lm import TransformerLM
+from .cross_entropy import cross_entropy
 
 __all__ = [
     "Linear",
@@ -23,5 +26,8 @@ __all__ = [
     "RotaryPositionalEmbedding",
     "softmax",
     "scaled_dot_product_attention",
-    "CausalSelfAttention"
+    "CausalSelfAttention",
+    "TransformerBlock",
+    "TransformerLM",
+    "cross_entropy"
 ]

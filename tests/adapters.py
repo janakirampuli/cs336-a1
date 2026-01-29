@@ -314,8 +314,26 @@ def run_transformer_block(
         Float[Tensor, "batch sequence_length d_model"] Tensor with the output of
         running the Transformer block on the input features while using RoPE.
     """
-    raise NotImplementedError
+    transformer_block = TransformerBlock(d_model, num_heads, d_ff, theta, max_seq_len, in_features.device, in_features.dtype)
 
+    W_qkv = torch.concat(
+        [weights['attn.q_proj.weight'], weights['attn.k_proj.weight'], weights["attn.v_proj.weight"]]
+    )
+    state_dict = OrderedDict([
+        ("rms_norm1.gain", weights['ln1.weight']),
+        ("attention.W_qkv.W", W_qkv),
+        ("attention.W_o.W", weights['attn.output_proj.weight']),
+        ("rms_norm2.gain", weights['ln2.weight']),
+        ("swiglu.W_1.W", weights['ffn.w1.weight']),
+        ("swiglu.W_2.W", weights['ffn.w2.weight']),
+        ("swiglu.W_3.W", weights['ffn.w3.weight']),
+    ])
+
+    transformer_block.load_state_dict(state_dict)
+
+    seq_len = in_features.shape[1]
+    token_positions = torch.arange(seq_len, device=in_features.device)
+    return transformer_block(in_features, token_positions)
 
 def run_transformer_lm(
     vocab_size: int,
@@ -396,8 +414,38 @@ def run_transformer_lm(
         Float[Tensor, "batch_size sequence_length vocab_size"]: Tensor with the predicted unnormalized
         next-word distribution for each token.
     """
-    raise NotImplementedError
+    
+    model = TransformerLM(
+        vocab_size,
+        context_length,
+        num_layers,
+        d_model,
+        num_heads,
+        d_ff,
+        rope_theta,
+        in_indices.device,
+        torch.float32
+    )
 
+    state_dict = {}
+
+    state_dict['token_embeddings.W_e'] = weights['token_embeddings.weight']
+    state_dict['rms_norm.gain'] = weights['ln_final.weight']
+    state_dict['linear.W'] = weights['lm_head.weight']
+
+    for i in range(num_layers):
+        W_qkv = torch.cat([weights[f'layers.{i}.attn.q_proj.weight'], weights[f'layers.{i}.attn.k_proj.weight'], weights[f'layers.{i}.attn.v_proj.weight']], dim=0)
+        state_dict[f'layers.{i}.attention.W_qkv.W'] = W_qkv
+        state_dict[f'layers.{i}.attention.W_o.W'] = weights[f'layers.{i}.attn.output_proj.weight']
+        state_dict[f'layers.{i}.rms_norm1.gain'] = weights[f'layers.{i}.ln1.weight']
+        state_dict[f'layers.{i}.swiglu.W_1.W'] = weights[f'layers.{i}.ffn.w1.weight']
+        state_dict[f'layers.{i}.swiglu.W_2.W'] = weights[f'layers.{i}.ffn.w2.weight']
+        state_dict[f'layers.{i}.swiglu.W_3.W'] = weights[f'layers.{i}.ffn.w3.weight']
+        state_dict[f'layers.{i}.rms_norm2.gain'] = weights[f'layers.{i}.ln2.weight']
+
+    model.load_state_dict(state_dict)
+
+    return model(in_indices)
 
 def run_rmsnorm(
     d_model: int,
@@ -493,7 +541,7 @@ def run_cross_entropy(
     Returns:
         Float[Tensor, ""]: The average cross-entropy loss across examples.
     """
-    raise NotImplementedError
+    return cross_entropy(logits=inputs, targets=targets)
 
 
 def run_gradient_clipping(parameters: Iterable[torch.nn.Parameter], max_l2_norm: float) -> None:

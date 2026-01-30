@@ -15,6 +15,9 @@ from .multihead_self_attention import CausalSelfAttention
 from .transformer_block import TransformerBlock
 from .transformer_lm import TransformerLM
 from .cross_entropy import cross_entropy
+from .adamw import AdamW
+from .learning_rate_schedule import get_lr_cosine_schedule
+from .gradient_clipping import gradient_clipping
 
 __all__ = [
     "Linear",
@@ -29,5 +32,8 @@ __all__ = [
     "CausalSelfAttention",
     "TransformerBlock",
     "TransformerLM",
-    "cross_entropy"
+    "cross_entropy",
+    "AdamW",
+    "get_lr_cosine_schedule",
+    "gradient_clipping"
 ]

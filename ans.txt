@@ -161,7 +161,7 @@ total ~ (6*c*d*d + 4*c*c*d + 2*c*d*d + 4*c*d*d_ff) * n
 
 total ~ 3.34 * 10^12 FLOPS
 
-3.34 TRILLION FLOPS per forwars pass
+3.34 TRILLION FLOPS per forward pass
 
 
 (c) Based on your analysis above, which parts of the model require the most FLOPs?
@@ -189,4 +189,150 @@ at long contexts -> attention-dominated FLOPS
 
 ---
 
+Problem (learning_rate_tuning): Tuning the learning rate (1 point)
+As we will see, one of the hyperparameters that affects training the most is the learning rate. Let's see that in practice in our toy example. Run the SGD example above with three other values for the learning rate: 1e1, 1e2, and 1e3, for just 10 training iterations. What happens with the loss for each of these learning rates? Does it decay faster, slower, or does it diverge (i.e., increase over the course of training)?
+Ans:
+--- Testing Learning Rate: 1.0 ---
+Iteration 0: Loss = 24.1693
+Iteration 1: Loss = 23.2122
+Iteration 2: Loss = 22.5603
+Iteration 3: Loss = 22.0423
+Iteration 4: Loss = 21.6036
+Iteration 5: Loss = 21.2189
+Iteration 6: Loss = 20.8738
+Iteration 7: Loss = 20.5594
+Iteration 8: Loss = 20.2697
+Iteration 9: Loss = 20.0003
+
+--- Testing Learning Rate: 10.0 ---
+Iteration 0: Loss = 24.1693
+Iteration 1: Loss = 15.4683
+Iteration 2: Loss = 11.4026
+Iteration 3: Loss = 8.9213
+Iteration 4: Loss = 7.2263
+Iteration 5: Loss = 5.9914
+Iteration 6: Loss = 5.0529
+Iteration 7: Loss = 4.3179
+Iteration 8: Loss = 3.7288
+Iteration 9: Loss = 3.2482
+
+--- Testing Learning Rate: 100.0 ---
+Iteration 0: Loss = 24.1693
+Iteration 1: Loss = 24.1693
+Iteration 2: Loss = 4.1468
+Iteration 3: Loss = 0.0992
+Iteration 4: Loss = 0.0000
+Iteration 5: Loss = 0.0000
+Iteration 6: Loss = 0.0000
+Iteration 7: Loss = 0.0000
+Iteration 8: Loss = 0.0000
+Iteration 9: Loss = 0.0000
+
+--- Testing Learning Rate: 1000.0 ---
+Iteration 0: Loss = 24.1693
+Iteration 1: Loss = 8725.1016
+Iteration 2: Loss = 1506962.5000
+Iteration 3: Loss = 167633488.0000
+Iteration 4: Loss = 13578311680.0000
+Iteration 5: Loss = 856946966528.0000
+Iteration 6: Loss = 43992855085056.0000
+Iteration 7: Loss = 1892760814616576.0000
+Iteration 8: Loss = 69763132314091520.0000
+Iteration 9: Loss = 2240171378709889024.0000
+
+1.0 -> slow convergence
+10.0 -> looks good, stable
+100.0 -> quickly reaches 0
+1000.0 -> diverges
+
+------\         /---------\            /---------------
+       \       /           \          /
+        ------/             \        /
+                             \------/
+
+don't get trapped
+don't overshoot
+
+---
+
+Problem (adamwAccounting): Resource accounting for training with AdamW (2 points)
+
+Let us compute how much memory and compute running AdamW requires. Assume we are using float32 for every tensor.
+(a) How much peak memory does running AdamW require? Decompose your answer based on the memory usage of the parameters, activations, gradients, and optimizer state. Express your answer in terms of the batch_size and the model hyperparameters (vocab_size, context_length,num_layers, d_model, num_heads). Assume d_ff = 4 × d_model. For simplicity, when calculating memory usage of activations, consider only the following components:
+• Transformer block
+    - RMSNorm(s)
+    - Multi-head self-attention sublayer: QKV projections, Q⊤K matrix multiply, softmax, weighted sum of values, output projection.
+    - Position-wise feed-forward: W1 matrix multiply, SiLU, W2 matrix multiply
+• final RMSNorm
+• output embedding
+• cross-entropy on logits
+Deliverable: An algebraic expression for each of parameters, activations, gradients, and optimizer state, as well as the total.
+Ans:
+params:
+transformer_block -> 2*d + 4*d*d + 3*d*d_ff
+pos_embeddings -> c*d
+token_embeddings -> v*d
+total_params = n*(2*d + 4*d*d + 3*d*d_ff) + d + d*v + c*d
+memory(fp32) = 4 * total_params bytes
+
+gradients:
+memory_grads = 4 * total_params
+
+optimizer state:
+memory_optimizer(m, v) = 8 * total_params
+
+activations:
+qkv = 3*b*c*d
+q_t*k = b*q*k*c*c
+softmax = b*q*k*c*c
+attn_output = b*c*d
+
+ffn:
+w1 = b*c*4*d
+silu activations = b*c*4*d
+w2 = b*c*d
+
+final rmsnorm = b*c*d
+logits = b*c*V
+
+activations per layer ~ b*(13*c*d + 2*q*k**c*c)
+memory ~ 4 * b*(n*(13*c*d + 2*q*k*c*c) + c*d + c*V)
+
+total_peak_memory ~ (4 + 4 + 8)*total_params + memory ~ 16*total_params + 4 * b*(n*(13*c*d + 2*q*k*c*c) + c*d + c*V)
+where total_params = n*(2*d + 4*d*d + 3*d*d_ff) + d + d*v + c*d
+
+(b) Instantiate your answer for a GPT-2 XL-shaped model to get an expression that only depends on the batch_size. What is the maximum batch size you can use and still fit within 80GB memory?
+Deliverable: An expression that looks like a · batch_size + b for numerical values a, b, and a number representing the maximum batch size.
+Ans:
+total_params ~ 2B
+total_mem ~ 32GB + b*(14.3)GB 
+b <= 3.4
+max_batch_size ~ 3
+
+(c) How many FLOPs does running one step of AdamW take?
+Deliverable: An algebraic expression, with a brief justification.
+Ans:
+m update -> 3 (2*, 1+)
+v update -> 4 (1sq, 2*, 1+)
+denom -> 2 (1sq, 1+)
+param update -> 3 (1 /, 1*, 1+)
+weight_decay update -> 2 mul-add
+total ~ 14 FLOPS/param
+total ~ 14 * params FLOPS
+
+
+(d) Model FLOPs utilization (MFU) is defined as the ratio of observed throughput (tokens per second) relative to the hardware's theoretical peak FLOP throughput [Chowdhery et al., 2022]. An NVIDIA A100 GPU has a theoretical peak of 19.5 teraFLOP/s for float32 operations. Assuming you are able to get 50% MFU, how long would it take to train a GPT-2 XL for 400K steps and a batch size of 1024 on a single A100? Following Kaplan et al. [2020] and Hoffmann et al. [2022], assume that the backward pass has twice the FLOPs of the forward pass.
+Deliverable: The number of days training would take, with a brief justification.
+Ans:
+total_params ~ 2B
+total_tokens = 400000 * 1024 * 1024 ~ 4.2*10^11
+total_flops in forward_pass (b=1) ~ 3.34 * 10^9
+total_flops in backward_pass (b=1) ~ 2 * 3.34 * 10^9
+total_flops ~ 3*3.34*10^12*400000*1024 ~ 4.1*10^21
+
+peak fp_32 = 19.5 TFLOP/s = 19.5*10^12
+mfu = 50%
+hardware_throughput = 9.75*10^12
+time = (4.1*10^21 / 9.75*10^12) ~ 4.20*10^8
+t_days ~ 4861 days(13.3 years)
 

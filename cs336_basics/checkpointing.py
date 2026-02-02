@@ -24,6 +24,13 @@ def load_checkpoint(
 ) -> int:
     checkpoint_state = torch.load(src)
 
-    model.load_state_dict(checkpoint_state['model_state_dict'])
+    state_dict = checkpoint_state['model_state_dict']
+    unwanted_prefix = '_orig_mod.'
+    
+    for k in list(state_dict.keys()):
+        if k.startswith(unwanted_prefix):
+            state_dict[k[len(unwanted_prefix):]] = state_dict.pop(k)
+
+    model.load_state_dict(state_dict)
     optimizer.load_state_dict(checkpoint_state['optimizer_state_dict'])
     return checkpoint_state['iteration']

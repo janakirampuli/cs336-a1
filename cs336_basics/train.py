@@ -31,9 +31,9 @@ def parse_args():
     parser.add_argument("--rope_theta", type=float, default=10000.0, help="RoPE theta parameter")
 
     # training hyperparameters
-    parser.add_argument("--batch_size", type=int, default=32, help="batch size per device")
-    parser.add_argument("--learning_rate", type=float, default=3e-4, help="max learning rate")
-    parser.add_argument("--max_iters", type=int, default=40000, help="total number of training iterations")
+    parser.add_argument("--batch_size", type=int, default=64, help="batch size per device")
+    parser.add_argument("--learning_rate", type=float, default=3e-3, help="max learning rate")
+    parser.add_argument("--max_iters", type=int, default=4000, help="total number of training iterations")
     parser.add_argument("--warmup_iters", type=int, default=1000, help="number of warmup iterations")
     parser.add_argument("--min_lr", type=float, default=3e-5, help="minimum learning rate")
     parser.add_argument("--weight_decay", type=float, default=0.1, help="weight decay for optimizer")
@@ -45,7 +45,7 @@ def parse_args():
     parser.add_argument("--adam_eps", type=float, default=1e-8, help="AdamW epsilon")
 
     # logging
-    parser.add_argument("--device", type=str, default="mps" if torch.mps.is_available() else "cpu", help="device to use (cuda, mps, cpu)")
+    parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu", help="device to use (cuda, mps, cpu)")
     parser.add_argument("--eval_interval", type=int, default=500, help="how often to evaluate on validation set")
     parser.add_argument("--save_interval", type=int, default=1000, help="how often to save checkpoints")
     parser.add_argument("--log_interval", type=int, default=10, help="how often to log metrics to console")
@@ -110,6 +110,12 @@ def main():
 
     model = TransformerLM(**model_config)
     model.to(device)
+
+    if args.device == "mps":
+        model = torch.compile(model, backend="aot_eager")
+    else:
+        model = torch.compile(model)
+
 
     optimizer = AdamW(params=model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay)
 

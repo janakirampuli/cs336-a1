@@ -112,6 +112,11 @@ def main():
     dummy_optimizer = torch.optim.AdamW(model.parameters()) 
     load_checkpoint(args.checkpoint, model, dummy_optimizer)
 
+    if args.device == "mps":
+        model = torch.compile(model, backend="aot_eager")
+    else:
+        model = torch.compile(model)
+    
     prompt_ids = tokenizer.encode(args.prompt)
     prompt_tensor = torch.tensor(prompt_ids, dtype=torch.long, device=device).unsqueeze(0)
 

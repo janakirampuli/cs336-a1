@@ -3,6 +3,7 @@ import time
 import argparse
 import numpy as np
 import torch
+import wandb 
 
 from .transformer_lm import TransformerLM
 from .adamw import AdamW
@@ -22,26 +23,37 @@ def parse_args():
 
     # model hyperparams
     parser.add_argument("--d_model", type=int, default=512, help="embedding dimension (d_model)")
-    parser.add_argument("--n_layers", type=int, default=8, help="number of transformer layers (num_layers)")
-    parser.add_argument("--n_heads", type=int, default=8, help="number of attention heads (num_heads)")
-    parser.add_argument("--d_ff", type=int, default=None, help="feed forward dimension. Defaults to 4 * dim if not provided")
-    parser.add_argument("--vocab_size", type=int, default=32000, help="vocabulary size")
-    parser.add_argument("--max_seq_len", type=int, default=1024, help="maximum sequence length (context_length)")
+    parser.add_argument("--n_layers", type=int, default=4, help="number of transformer layers (num_layers)")
+    parser.add_argument("--n_heads", type=int, default=16, help="number of attention heads (num_heads)")
+    parser.add_argument("--d_ff", type=int, default=1344, help="feed forward dimension")
+    parser.add_argument("--vocab_size", type=int, default=10000, help="vocabulary size")
+    parser.add_argument("--max_seq_len", type=int, default=256, help="maximum sequence length (context_length)")
+    parser.add_argument("--rope_theta", type=float, default=10000.0, help="RoPE theta parameter")
 
     # training hyperparameters
     parser.add_argument("--batch_size", type=int, default=32, help="batch size per device")
     parser.add_argument("--learning_rate", type=float, default=3e-4, help="max learning rate")
-    parser.add_argument("--max_iters", type=int, default=10000, help="total number of training iterations")
+    parser.add_argument("--max_iters", type=int, default=40000, help="total number of training iterations")
     parser.add_argument("--warmup_iters", type=int, default=1000, help="number of warmup iterations")
     parser.add_argument("--min_lr", type=float, default=3e-5, help="minimum learning rate")
     parser.add_argument("--weight_decay", type=float, default=0.1, help="weight decay for optimizer")
     parser.add_argument("--grad_clip", type=float, default=1.0, help="gradient clipping threshold")
+
+    # AdamW hyperparameters
+    parser.add_argument("--adam_beta1", type=float, default=0.9, help="AdamW beta1")
+    parser.add_argument("--adam_beta2", type=float, default=0.999, help="AdamW beta2")
+    parser.add_argument("--adam_eps", type=float, default=1e-8, help="AdamW epsilon")
 
     # logging
     parser.add_argument("--device", type=str, default="mps" if torch.mps.is_available() else "cpu", help="device to use (cuda, mps, cpu)")
     parser.add_argument("--eval_interval", type=int, default=500, help="how often to evaluate on validation set")
     parser.add_argument("--save_interval", type=int, default=1000, help="how often to save checkpoints")
     parser.add_argument("--log_interval", type=int, default=10, help="how often to log metrics to console")
+
+    # wandb
+    parser.add_argument("--wandb_project", type=str, default="tinystories-transformer", help="wandb project name")
+    parser.add_argument("--wandb_run_name", type=str, default=None, help="wandb run name")
+    parser.add_argument("--no_wandb", action="store_true", help="disable wandb logging explicitly")
 
     return parser.parse_args()
 
@@ -72,6 +84,14 @@ def main():
     device = torch.device(args.device)
     print(f"using device: {device}")
 
+    use_wandb = not args.no_wandb
+    if use_wandb:
+        wandb.init(
+            project=args.wandb_project,
+            name=args.wandb_run_name,
+            config=vars(args)
+        )
+
     train_data = np.memmap(os.path.join(args.data_dir, 'train.bin'), dtype=np.uint16, mode='r')
 
     d_ff = args.d_ff if args.d_ff is not None else 4 * args.d_model
@@ -101,51 +121,83 @@ def main():
     
     print(f"model parameters: {sum(p.numel() for p in model.parameters()) / 1e6:.3f}M")
 
-    t0 = time.time()
+    if use_wandb:
+        wandb.watch(model, log="all", log_freq=500)
 
+    t0 = time.time()
+    t_iter_start = time.time()
     X, Y = get_batch(train_data, args.batch_size, args.max_seq_len, device)
 
-    while iter_num < args.max_iters:
-        lr = get_lr_cosine_schedule(iter_num, args.learning_rate, args.min_lr, args.warmup_iters, args.max_iters)
+    try:
+        while iter_num < args.max_iters:
+            lr = get_lr_cosine_schedule(iter_num, args.learning_rate, args.min_lr, args.warmup_iters, args.max_iters)
 
-        for param_group in optimizer.param_groups:
-            param_group['lr'] = lr
+            for param_group in optimizer.param_groups:
+                param_group['lr'] = lr
 
-        logits = model(X)
-        loss = cross_entropy(logits, Y)
-        loss.backward()
+            logits = model(X)
+            loss = cross_entropy(logits, Y)
+            loss.backward()
 
-        gradient_clipping(model.parameters(), args.grad_clip)
-        optimizer.step()
-        optimizer.zero_grad()
+            gradient_clipping(model.parameters(), args.grad_clip)
+            optimizer.step()
+            optimizer.zero_grad()
 
-        X, Y = get_batch(train_data, args.batch_size, args.max_seq_len, device)
+            X, Y = get_batch(train_data, args.batch_size, args.max_seq_len, device)
 
-        if iter_num % args.log_interval == 0:
-            dt = time.time()
-            to = time.time()
-            loss_f = loss.item()
+            if iter_num % args.log_interval == 0:
+                t_now = time.time()
+                dt = t_now - t_iter_start
+                t_iter_start = t_now
 
-            print(f"iter {iter_num}: loss {loss_f:.4f}, time {dt*1000:.2f}ms, lr {lr:.6f}")
+                wall_time = t_now - t0
+                loss_f = loss.item()
+                ms_per_step = (dt * 1000) / args.log_interval
 
-        if iter_num > 0 and iter_num % args.eval_interval == 0:
-            print(f"evaluating at iter {iter_num}...")
-            losses = estimate_loss(model, args.data_dir, args.batch_size, args.max_seq_len, device)
-            print(f"step {iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
+                print(f"iter {iter_num}: loss {loss_f:.4f}, time {ms_per_step:.2f}ms/step, lr {lr:.6f}")
 
-            if losses['val'] < best_val_loss:
-                best_val_loss = losses['val']
-                if iter_num > 0:
-                    checkpoint_path = os.path.join(args.out_dir, 'ckpt_best.pt')
-                    print(f"saving best checkpoint to {checkpoint_path}")
-                    save_checkpoint(model, optimizer, iter_num, checkpoint_path)
-        
-        if iter_num > 0 and iter_num % args.save_interval == 0:
-            checkpoint_path = os.path.join(args.out_dir, f'ckpt_{iter_num}.pt')
-            print(f"saving regular checkpoint to {checkpoint_path}")
-            save_checkpoint(model, optimizer, iter_num, checkpoint_path)
+                if use_wandb:
+                    wandb.log({
+                        "train/loss": loss_f,
+                        "train/lr": lr,
+                        "train/step": iter_num,
+                        "train/wall_time": wall_time,
+                        "perf/ms_per_step": ms_per_step
+                    }, step=iter_num)
 
-        iter_num += 1
+            if iter_num > 0 and iter_num % args.eval_interval == 0:
+                print(f"evaluating at iter {iter_num}...")
+                losses = estimate_loss(model, args.data_dir, args.batch_size, args.max_seq_len, device)
+                print(f"step {iter_num}: train loss {losses['train']:.4f}, val loss {losses['val']:.4f}")
+
+                wall_time = time.time() - t0
+
+                if use_wandb:
+                    wandb.log({
+                        "val/loss": losses["val"],
+                        "val/train_loss": losses["train"],
+                        "val/step": iter_num
+                    }, step=iter_num)
+
+                if losses['val'] < best_val_loss:
+                    best_val_loss = losses['val']
+                    if iter_num > 0:
+                        checkpoint_path = os.path.join(args.out_dir, 'ckpt_best.pt')
+                        print(f"saving best checkpoint to {checkpoint_path}")
+                        save_checkpoint(model, optimizer, iter_num, checkpoint_path)
+                t_iter_start = time.time()
+
+            if iter_num > 0 and iter_num % args.save_interval == 0:
+                checkpoint_path = os.path.join(args.out_dir, f'ckpt_{iter_num}.pt')
+                print(f"saving regular checkpoint to {checkpoint_path}")
+                save_checkpoint(model, optimizer, iter_num, checkpoint_path)
+
+            iter_num += 1
+    except KeyboardInterrupt:
+        print('training interrupted')
+    finally:
+        if use_wandb:
+            wandb.finish()
     
     print(f"training completed")
 

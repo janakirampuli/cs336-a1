@@ -359,5 +359,18 @@ uv run python -m cs336_basics.train --data_dir dataset --out_dir checkpoints/tes
 
 uv run python -m cs336_basics.decoding --data_dir dataset --out_dir checkpoints/test_run --d_model 64 --n_layers 2 --n_heads 2 --batch_size 4 --max_seq_len 32 --max_iters 10 --eval_interval 5 --save_interval 5 --device cpu
 
+
+uv run python -m cs336_basics.decoding --checkpoint checkpoints/mps_test/ckpt_best.pt --vocab_path dataset/TinyStories_vocab.json --merges_path dataset/TinyStories_merges.txt --prompt "hi this is janaki, nice to meet you." --d_model 512 --n_layers 4 --n_heads 16 --d_ff 1344 --vocab_size 10000 --max_seq_len 256 --device mps
+
+uv run python -m cs336_basics.decoding --checkpoint checkpoints/a10_test/ckpt_best.pt --vocab_path dataset/TinyStories_vocab.json --merges_path dataset/TinyStories_merges.txt --prompt "hi this is janaki, nice to meet you." --d_model 512 --n_layers 4 --n_heads 16 --d_ff 1344 --vocab_size 10000 --max_seq_len 256 --device cuda
+
 ---
 
+wandb commands:
+
+uv run python -m cs336_basics.train --data_dir dataset --out_dir checkpoints/wandb_run --d_model 64 --n_layers 2 --n_heads 2 --batch_size 4 --max_seq_len 32 --max_iters 5000 --eval_interval 500 --save_interval 2500 --device cpu --wandb_project "cs336-a1-test" --wandb_run_name "cpu-long-run"
+
+
+uv run python -m cs336_basics.train --data_dir dataset --out_dir checkpoints/mps_test --device mps --d_model 512 --n_layers 4 --n_heads 16 --d_ff 1344 --vocab_size 10000 --max_seq_len 256 --rope_theta 10000 --batch_size 32 --learning_rate 3e-4 --max_iters 2000 --eval_interval 200 --save_interval 1000 --wandb_project "cs336-a1-test" --wandb_run_name "mps-run"
+
+uv run python -m cs336_basics.train --data_dir dataset --out_dir checkpoints/a10_test --device cuda --d_model 512 --n_layers 4 --n_heads 16 --d_ff 1344 --vocab_size 10000 --max_seq_len 256 --rope_theta 10000 --batch_size 32 --learning_rate 3e-4 --max_iters 2000 --eval_interval 200 --save_interval 1000 --wandb_project "cs336-a1-test" --wandb_run_name "a10-test-run"

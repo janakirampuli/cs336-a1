@@ -73,8 +73,8 @@ def main():
     parser.add_argument("--merges_path", type=str, required=True, help="path to tokenizer merges file")
     
     # generation config
-    parser.add_argument("--prompt", type=str, default="Once upon a time", help="input text prompt")
-    parser.add_argument("--max_new_tokens", type=int, default=100, help="number of tokens to generate")
+    parser.add_argument("--prompt", type=str, default="hi this is janaki, nice to meet you.", help="input text prompt")
+    parser.add_argument("--max_new_tokens", type=int, default=500, help="number of tokens to generate")
     parser.add_argument("--temperature", type=float, default=0.8, help="sampling temperature (lower is more deterministic)")
     parser.add_argument("--top_p", type=float, default=0.9, help="nucleus sampling probability threshold")
     

@@ -392,9 +392,6 @@ tmux attach -t training
 
 ---
 
-
-
-
 Problem (learning_rate): Tune the learning rate
 
 The learning rate is one of the most important hyperparameters to tune. Taking the base model you’ve trained, answer the following questions:
@@ -537,9 +534,22 @@ running owt:
 
 uv run python -m cs336_basics.train --data_dir dataset --out_dir checkpoints/owt_test --device cuda --batch_size 64 --vocab_size 32000 --learning_rate 3e-3 --max_iters 1000  --wandb_project "cs336-a1-owt" --wandb_run_name "test-run"
 
-uv run python -m cs336_basics.train --data_dir dataset --out_dir checkpoints/owt_test --device cuda --batch_size 64 --vocab_size 32000 --learning_rate 3e-3 --max_iters 5000  --wandb_project "cs336-a1-owt" --wandb_run_name "5k-run"
+uv run python -m cs336_basics.train --data_dir dataset --out_dir checkpoints/owt_5k --device cuda --batch_size 64 --vocab_size 32000 --learning_rate 3e-3 --max_iters 5000  --wandb_project "cs336-a1-owt" --wandb_run_name "5k-run"
 
 sample generated:
 
-Once upon a time,  reasonable nointed  names I w tr  hand ward ciz K. idence acific w am  include  images it  wor p explet U  from ice  re wants  rec build  includ s learning, "ory,  legalave  imagesect  organ,  be thew  re wants  images s it thew pist  includ hhis loker  vess f was it thew pist.
-<|endoftext|>
+Once upon a time, it is really in the workforce of our microbial expression. It could seem like others would try to get the higher level of biodiversity than today. In 2011, the new study shows the basis that disease was the wandering the current model  as a whole between 2 and 20 percent  was operating at 5.
+
+The study states that microbial linical trials are now investigating the same kind of problem with smoking and drinking water. (The biometric problem of the Gibberta study that found that biodiversity may have not provided an increase in smoking.)
+
+In the case of pasta-low, 6 percent of all those involved with smoking cannot be considered by autonomous labor patients who dont have to come to the store with a certain right to replace them. The study also suggests that clinical diseases have a significant responsible effect on patients also are not unknown or highly disspecific. To patients with multiple coins, there is no evidence that using nutrient coins on patient procedures may have previously been distinguished, thanks to the coming implied effects. By re
+
+uv run python -m cs336_basics.train --data_dir dataset --out_dir checkpoints/owt_10k --device cuda --batch_size 64 --vocab_size 32000 --learning_rate 3e-3 --max_iters 10000  --wandb_project "cs336-a1-owt" --wandb_run_name "10k-run"
+
+Once upon a time, this battle can be divided into one anemic dilemma which occurs casually following the end of a temple or a mascot. It depends on that the uterus has been detrimental to the insect on the last batch of chvr and clearly worn out
+
+The main themes of the existence of species are introduced by the ancient polics of the animal. The mascot can be argued with no charges of an evil or any other process. Chvr der Serecordari his species of the presence of mascot and par becomes a free form. The mascot chromosomes of the species are not exactly capable of a presence of the presence of it. Hence, the DNA of the equal reaction of the species is a membrane of the Mordor of so much species.
+
+Protection of the presence of which the predator mascot die from the tide of a mascot named Renault. Ember (a witness to the effects of the triangle which has been supplied to the materials of the biodiversity) there are many forensic references (le the
+
+---
